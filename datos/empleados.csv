@@ -3,6 +3,6 @@ dni,nombre,dias_disponibles,dias_tomados,solicitud_pendiente
 87654321,Maria Lopez,0,21,False
 11223344,Carlos Gomez,21,0,False
 55667788,Ana Martinez,7,14,False
-99887766,Pedro Sanchez,15,5,True
-91563220,Leonel Zaccardi,40,5,True
-93143889,Nicolas Sschneider,21,5,True
+99887766,Pedro Sanchez,15,5,False
+91563220,Leonel Zaccardi,40,5,False
+93143889,Nicolas Sschneider,21,5,False
