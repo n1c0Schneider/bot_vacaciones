@@ -3,7 +3,11 @@
 Chatbot de Telegram que automatiza el proceso de solicitud de vacaciones,
 reemplazando el flujo manual de formularios y planillas físicas.
 
-Desarrollado por Nico y Leo — UTN TUP Organización Empresarial 2025.
+El sistema permite validar la identidad del empleado mediante DNI, consultar su saldo
+de dias disponibles, solicitar fecha de inicio y cantidad de dias, calcular automaticamente
+la fecha de finalizacion y registrar la solicitud en archivos CSV como base de datos simulada.
+
+Desarrollado por Nico y Leo — UTN TUP Organización Empresarial 2026.
 
 ---
 
@@ -70,7 +74,8 @@ bot_vacaciones/
 ├── bot/
 │   └── main.py          # Código principal del bot
 ├── datos/
-│   └── empleados.csv    # Base de datos simulada
+│   ├── empleados.csv    # Base de datos simulada
+|   └── solicitudes.csv  # Historial de solicitudes registradas
 ├── docs/
 │   ├── AS-IS.jpg        # Diagrama proceso manual
 │   └── TO-BE.jpg        # Diagrama proceso automatizado
@@ -89,18 +94,25 @@ siguientes campos: DNI, nombre, dias_disponibles, dias_tomados, solicitud_pendie
 Para agregar empleados simplemente editá el CSV con cualquier editor de texto
 o Excel respetando el formato existente.
 
+El archivo solicitudes.csv registra las solicitudes aprobadas por el bot.
+campos: dni, nombre, fecha_inicio, fecha_fin, dias_solicitados, estado.
+
 ---
 
-## Flujo del bot
-
-1. El empleado inicia la conversación con /start
-2. El bot solicita el DNI
-3. Se valida el DNI contra el CSV
-4. Se verifica el saldo de días disponibles
-5. Se solicita fecha de inicio y cantidad de días
-6. Se valida disponibilidad y formato
-7. El empleado confirma la solicitud
-8. El sistema registra y actualiza el CSV
+## Flujo normal de uso
+|  1  | El empleado inicia la conversacion con /start.
+|  2  | El bot solicita el DNI.
+|  3  | El empleado ingresa su DNI usando solo numeros.
+|  4  | El bot valida el DNI contra el archivo empleados.csv .
+|  5  | Si el empleado existe, no tiene solicitud pendiente y posee saldo disponible, el bot solicita la fecha de inicio.
+|  6  | El empleado ingresa la fecha de inicio en formato DD/MM/AAAA.
+|  7  | El bot solicita la cantidad de dias de vacaciones.
+|  8  | El empleado ingresa la cantidad de dias solicitados.
+|  9  | El bot valida que los dias solicitados no superen el saldo disponible.
+|  10 | El bot calcula automaticamente la fecha de finalizacion.
+|  11 | El bot muestra un resumen de la solicitud.
+|  12 | El empleado confirma con SI o cancela con NO.
+|  13 | Si confirma, el sistema actualiza empleados.csv y registra la solicitud en solicitudes.csv .
 
 ---
 

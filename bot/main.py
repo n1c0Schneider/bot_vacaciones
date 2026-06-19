@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -22,6 +22,7 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 # __file__ es la ruta de main.py. Subimos un nivel con ".." y entramos a datos/
 # Asi funciona sin importar desde donde se ejecute el script
 RUTA_CSV = os.path.join(os.path.dirname(__file__), "..", "datos", "empleados.csv")
+RUTA_SOLICITUDES = os.path.join(os.path.dirname(__file__), "..", "datos", "solicitudes.csv")
 
 # ── Definicion de los estados de la maquina de estados ────────────────────────
 # Son simplemente numeros enteros. El ConversationHandler los usa para saber
@@ -92,6 +93,38 @@ def validar_fecha(texto: str):
     except ValueError:
         return None
 
+def calcular_fecha_fin(fecha_inicio_texto: str, dias_solicitados: int):
+    """
+    Calcula la fecha de finalizacion de las vacaciones.
+    Se resta 1 dia porque el primer dia solicitado cuenta como dia de vacaciones.
+    Ejemplo: inicio 10/07/2025 + 5 dias = finaliza 14/07/2025.
+    """
+    fecha_inicio = datetime.strptime(fecha_inicio_texto, "%d/%m/%Y")
+    fecha_fin = fecha_inicio + timedelta(days=dias_solicitados - 1)
+    return fecha_fin.strftime("%d/%m/%Y")
+
+def registrar_solicitud(empleado, fecha_inicio, fecha_fin, dias_solicitados, estado):
+    """
+    Registra la solicitud de vacaciones en un CSV separado.
+    Si el archivo no existe, crea el encabezado automaticamente.
+    """
+    existe_archivo = os.path.exists(RUTA_SOLICITUDES)
+    
+    nueva_solicitud = pd.DataFrame([{
+        "dni": empleado["dni"],
+        "nombre": empleado["nombre"],
+        "fecha_inicio": fecha_inicio,
+        "fecha_fin": fecha_fin,
+        "dias_solicitados": dias_solicitados,
+        "estado": estado
+    }])
+    
+    nueva_solicitud.to_csv(
+        RUTA_SOLICITUDES,
+        mode="a",
+        index=False,
+        header=not existe_archivo
+    )
 
 # ==============================================================================
 # MANEJADORES DE MENSAJES (HANDLERS)
@@ -279,12 +312,20 @@ async def recibir_dias(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Camino feliz: cantidad valida
     context.user_data["dias_solicitados"] = dias_solicitados
+    """
+        Calculamos la fecha de finalizacion en base a la fecha de inicio
+        y la cantidad de dias solicitados. Se guarda en user_data para usarla 
+        luego en la confirmacion final y en el registro CSV.
+    """
+    fecha_fin = calcular_fecha_fin(context.user_data["fecha_inicio"], dias_solicitados)
+    context.user_data["fecha_fin"] = fecha_fin
 
     # Mostramos el resumen antes de confirmar
     await update.message.reply_text(
         "Resumen de tu solicitud:\n"
         f"   Empleado: {empleado['nombre']}\n"
         f"   Fecha de inicio: {context.user_data['fecha_inicio']}\n"
+        f"   Fecha de finalizacion: {context.user_data['fecha_fin']}\n"
         f"   Dias solicitados: {dias_solicitados}\n\n"
         "Confirmas la solicitud? Responde SI o NO:"
     )
@@ -332,11 +373,23 @@ async def confirmar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     df.at[indice, "dias_tomados"]     = int(empleado["dias_tomados"]) + dias_solicitados
     df.at[indice, "solicitud_pendiente"] = True
     guardar_empleados(df)
+    """ 
+        Ademas de actualizar el saldo del empleado, registramos la solicitud
+        en un CSV separado para dejar historial y trazabilidad del proceso.
+    """
+    registrar_solicitud(
+        empleado,
+        context.user_data["fecha_inicio"],
+        context.user_data["fecha_fin"],
+        dias_solicitados,
+        "Aprobada"
+    )
 
     await update.message.reply_text(
         "Solicitud registrada con exito!\n\n"
         f"   Empleado: {empleado['nombre']}\n"
         f"   Fecha de inicio: {context.user_data['fecha_inicio']}\n"
+        f"   Fecha de finalizacion: {context.user_data['fecha_fin']}\n"
         f"   Dias solicitados: {dias_solicitados}\n"
         f"   Dias restantes: {int(empleado['dias_disponibles']) - dias_solicitados}\n\n"
         "RRHH recibira la notificacion. Usa /start para nueva consulta."
